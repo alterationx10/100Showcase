@@ -1,0 +1,10 @@
+@(gcList: List[GameClip])
+
+@main("Echo Company 363 | Game Clips") {
+    
+    @for(clip <- gcList) {
+        <p>
+            <img src="@clip.thumbnail">
+        </p>
+    }
+}

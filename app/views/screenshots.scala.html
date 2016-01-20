@@ -1,0 +1,10 @@
+@(scList: List[Screenshot])
+
+@main("Echo Company 363 | Screenshots") {
+
+    @for(sc <- scList) {
+        <p>
+            <img src="@sc.smallThumbnail">
+        </p>
+    }
+}
