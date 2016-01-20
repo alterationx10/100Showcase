@@ -1,10 +1,30 @@
-@(gcList: List[GameClip])
+@(gcList: List[GameClip], gamerMap: Map[String, String])
 
-@main("Echo Company 363 | Game Clips") {
-    
-    @for(clip <- gcList) {
-        <p>
-            <img src="@clip.thumbnail">
-        </p>
+    @main("Echo Company 363 | Game Clips") {
+
+        <div class="container">
+
+        @for(subgroup <- gcList.grouped(3)) {
+            <div class="row">
+            @for(gc <- subgroup) {
+                <div class="col-md-4">
+                    <p>@gamerMap.get(gc.ownerXuid).getOrElse("Unknown") on <script>document.write(new Date(@gc.datePublished).toLocaleString())</script></p>
+                    <div class="video-js-responsive-container vjs-hd">
+                        <video id="my-video" class="video-js vjs-default-skin" controls preload="none"
+                        poster="@gc.thumbnail" data-setup="{}">
+                            <source src="@gc.uri" type='video/mp4'>
+                            <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that
+                                <a href="http://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                            </p>
+                        </video>
+                    </div>
+                </div>
+            }
+            </div>
+        }
+
+        </div>
+
+        <script src="http://vjs.zencdn.net/5.4.6/video.js"></script>
+
     }
-}

@@ -7,10 +7,11 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 scalaVersion := "2.11.6"
 
 libraryDependencies ++= Seq(
-  jdbc,
   cache,
   ws,
-  specs2 % Test
+  "com.typesafe.play" %% "play-slick" % "1.1.1",
+  "com.h2database" % "h2" % "1.4.190",
+  "org.webjars" % "bootstrap" % "3.3.6"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"

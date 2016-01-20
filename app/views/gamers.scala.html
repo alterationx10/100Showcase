@@ -1,0 +1,11 @@
+@(gamerList: List[Gamer])
+
+@main("Echo Company 363 | Gamertags") {
+
+    <ul>
+        @for(gamer <- gamerList) {
+            <li>@gamer.gt</li>
+        }
+    </ul>
+
+}

@@ -1,47 +1,58 @@
 package controllers
 
-import com.google.inject.Inject
-import models.Gamer
-import modules.XboxAPI
+import models.{GameClipTable, GamerTable, ScreenShotTable}
+import play.api.Play
+import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
 import play.api.mvc._
-import scala.concurrent.ExecutionContext.Implicits.global
-class Application @Inject() (xboxAPI: XboxAPI) extends Controller {
+import slick.driver.JdbcProfile
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class Application extends Controller
+  with GamerTable
+  with GameClipTable
+  with ScreenShotTable
+  with HasDatabaseConfig[JdbcProfile]{
+
+  val dbConfig = DatabaseConfigProvider.get[JdbcProfile](Play.current)
+  import driver.api._
 
   def index = Action {
-
-    Ok(views.html.index("Your new application is ready."))
+    Ok(views.html.index.render())
   }
-
-  def test = Action.async {
-    val me = Gamer("Alteration x10", "2533274829464113", "")
-    xboxAPI.gameClips(me).map {
-      case Some(c) => {
-        Ok(c.toString())
-      }
-      case None => Ok
-    }
-  }
-
 
   def gameClips = Action.async {
-    val me = Gamer("Alteration x10", "2533274829464113", "")
-    xboxAPI.gameClips(me).map{ gcList =>
-      Ok(views.html.game_clips.render(gcList.getOrElse(List())))
-    }
+    dbConfig.db.run(Gamers.query.result).map { gamers =>
+      val list = gamers.toList
+      list.groupBy(_.xuid).map{case(k,v) => (k, v.head.gt)}
+    }.map { gamerMap =>
+      dbConfig.db.run(GameClips.query.result).map { result=>
+        Ok(views.html.game_clips.render(result.toList.sortBy(- _.expiration),gamerMap))
+      }
+    }.flatMap(identity)
   }
 
   def screenShots = Action.async {
-    val me = Gamer("Alteration x10", "2533274829464113", "")
-    xboxAPI.screenShots(me).map{ scList =>
-      Ok(views.html.screenshots.render(scList.getOrElse(List())))
+    dbConfig.db.run(Gamers.query.result).map { gamers =>
+      val list = gamers.toList
+      list.groupBy(_.xuid).map{case(k,v) => (k, v.head.gt)}
+    }.map { gamerMap =>
+      dbConfig.db.run(ScreenShots.query.result).map { result =>
+        Ok(views.html.screenshots.render(result.toList.sortBy(- _.expiration), gamerMap))
+      }
+    }.flatMap(identity)
+  }
+
+  def gamerList = Action.async {
+    dbConfig.db.run(Gamers.query.result).map { result=>
+      Ok(views.html.gamers.render(result.toList.sortBy(_.gt)))
     }
   }
 
-  def gamerList = ???
-
   def addGamer = ???
 
-  def about = ???
+  def about = Action {
+    Ok(views.html.about.render())
+  }
 
 }

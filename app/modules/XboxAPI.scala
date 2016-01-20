@@ -40,8 +40,12 @@ class XboxAPI @Inject() (configuration: Configuration, wSClient: WSClient) {
         case 200 => {
           val array = (result.json).as[JsArray].as[List[JsObject]].flatMap { js =>
             js.validate[GameClip] match {
-              case s: JsSuccess[GameClip] => Some(s.get)
-              case _ => None
+              case s: JsSuccess[GameClip] => {
+                Some(s.get)
+              }
+              case _ => {
+                None
+              }
             }
           }
           Some(array)
