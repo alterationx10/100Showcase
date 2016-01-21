@@ -13,6 +13,7 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
+import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
