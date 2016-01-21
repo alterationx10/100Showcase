@@ -2,7 +2,19 @@
 
 @main("Echo Company 363 | Gamertags") {
 
-    <ul>
+    <form class="form-inline" role="form" method="post" action="@routes.Application.addGamer()" style="float: right ;">
+        <p>
+            Is your Destiny clan tag set to E363? If so, join the showcase!
+        </p>
+        <div class="form-group">
+            <label for="gamertag">XBox Gamertag:</label>
+            <input type="text" class="form-control" id="gamertag" name="gamertag">
+        </div>
+        <button type="submit" class="btn btn-default">Submit</button>
+    </form>
+
+    <h4>Guardians currently in the showcase:</h4>
+    <ul style="list-style: none;">
         @for(gamer <- gamerList) {
             <li>@gamer.gt</li>
         }

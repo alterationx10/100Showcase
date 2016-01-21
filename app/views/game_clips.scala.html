@@ -3,11 +3,10 @@
     @main("Echo Company 363 | Game Clips") {
 
         <div class="container">
-
         @for(subgroup <- gcList.grouped(3)) {
             <div class="row">
             @for(gc <- subgroup) {
-                <div class="col-md-4">
+                <div class="col-md-4 thumbnail">
                     <p>@gamerMap.get(gc.ownerXuid).getOrElse("Unknown") on <script>document.write(new Date(@gc.datePublished).toLocaleString())</script></p>
                     <div class="video-js-responsive-container vjs-hd">
                         <video id="my-video" class="video-js vjs-default-skin" controls preload="none"

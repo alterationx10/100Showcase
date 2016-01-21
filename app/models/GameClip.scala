@@ -13,7 +13,7 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
-import scala.concurrent.duration._
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 //	"datePublished": "2016-01-18T01:52:56.6016817Z",
@@ -123,6 +123,21 @@ class GameClipTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, xb
         }
       }
 
+    }
+  }
+
+  def sync(gamer: Gamer) = {
+    xboxAPI.gameClips(gamer).map {
+      case Some(clips) => {
+        val nonExpired = clips.filter(_.expiration > System.currentTimeMillis())
+        Logger.info(s"Syncing ${nonExpired.size} clips for ${gamer.gt}")
+        nonExpired.foreach { clip =>
+          dbConfig.db.run(GameClips.query.insertOrUpdate(clip))
+        }
+      }
+      case None => {
+        Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
+      }
     }
   }
 

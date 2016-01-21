@@ -7,10 +7,10 @@
     @for(subgroup <- scList.grouped(3)) {
         <div class="row">
         @for(sc <- subgroup) {
-            <div class="col-md-4">
-                <a href="@sc.uri" class="thumbnail">
-                    <p>@gamerMap.get(sc.ownerXuid).getOrElse("Unknown") + date goes here</p>
-                    <img src="@sc.thumbnail" alt="@gamerMap.get(sc.ownerXuid).getOrElse("Unknown")">
+            <div class="col-md-4 thumbnail">
+                    <p>@gamerMap.get(sc.ownerXuid).getOrElse("Unknown") on <script>document.write(new Date(@sc.datePublished).toLocaleString())</script></p>
+                <a href="@sc.uri">
+                <img src="@sc.thumbnail" alt="@gamerMap.get(sc.ownerXuid).getOrElse("Unknown")">
                 </a>
             </div>
         }

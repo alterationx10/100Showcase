@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 import javax.xml.bind.DatatypeConverter
 
 import akka.actor.ActorSystem
-import com.google.inject.{AbstractModule, Singleton, Inject}
+import com.google.inject.{AbstractModule, Inject, Singleton}
 import modules.XboxAPI
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
@@ -13,8 +13,8 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
 
 case class ScreenshotUri(uri: String, fileSize: Int, uriType: String, expiration: String) {
   def expirationEpoch = ScreenshotUri.sdf.parse(expiration).getTime
@@ -117,6 +117,21 @@ class ScreenShotTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, 
         }
       }
 
+    }
+  }
+
+  def sync(gamer: Gamer) = {
+    xboxAPI.screenShots(gamer).map {
+      case Some(sc) => {
+        val nonExpired = sc.filter(_.expiration > System.currentTimeMillis())
+        Logger.info(s"Syncing ${nonExpired.size} screenshots for ${gamer.gt}")
+        nonExpired.foreach { s =>
+          dbConfig.db.run(ScreenShots.query.insertOrUpdate(s))
+        }
+      }
+      case None => {
+        Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
+      }
     }
   }
 

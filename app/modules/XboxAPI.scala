@@ -23,6 +23,18 @@ class XboxAPI @Inject() (configuration: Configuration, wSClient: WSClient) {
 
   val endpoint = "https://xboxapi.com"
 
+  def xuid(gt: String): Future[Option[String]] = {
+    val url = s"$endpoint/v2/xuid/${gt.replaceAll(" ","%20")}"
+    wSClient.url(url).withHeaders(
+      "X-AUTH" -> apiKey
+    ).get.map { result =>
+      result.status match {
+        case 200 => Some(result.body)
+        case _ => None
+      }
+    }
+  }
+
   def gameClips(gamer: Gamer) : Future[Option[List[GameClip]]] = {
 
     val url = s"$endpoint/v2/${gamer.xuid}/game-clips/$destinyTitleId"
