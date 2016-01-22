@@ -6,7 +6,7 @@ import modules.XboxAPI
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
 import play.api.libs.ws.WSClient
 import play.api.mvc._
-import play.api.{Configuration, Play}
+import play.api.{Logger, Configuration, Play}
 import slick.driver.JdbcProfile
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -170,5 +170,19 @@ class Application @Inject() (
         case _ => Left("BumbleWaffleBee: Error contacting destiny servers.")
       }
     }
+  }
+
+  def superSecretSync = Action { implicit request =>
+
+    val secret = configuration.getString("showcase.refresh")
+
+    if (secret == getPostParameter("refresh")) {
+      Logger.info("Forcing sync...")
+      gameClipTableHelper.sync
+      screenShotTableHelper.sync
+    }
+
+    Ok
+
   }
 }
