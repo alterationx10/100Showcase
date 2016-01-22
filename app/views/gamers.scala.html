@@ -11,12 +11,15 @@
             <input type="text" class="form-control" id="gamertag" name="gamertag">
         </div>
         <button type="submit" class="btn btn-default">Submit</button>
+        <p>
+            Note: This uses the Destiny API to check your clan tag, and seems to be case-sensitive
+        </p>
     </form>
 
     <h4>Guardians currently in the showcase:</h4>
     <ul style="list-style: none;">
         @for(gamer <- gamerList) {
-            <li>@gamer.gt</li>
+            <li>@gamer.gt <a href="@routes.Application.gamerGameClips(gamer.gt)">Clips</a> <a href="@routes.Application.gamerScreenShots(gamer.gt)">Screenshots</a> </li>
         }
     </ul>
 

@@ -49,6 +49,21 @@ class Application @Inject() (
     }.flatMap(identity)
   }
 
+  def gamerGameClips(gt: String) = Action.async {
+    dbConfig.db.run(Gamers.query.filter(_.gt === gt).result.headOption).map {
+      case Some(g) => {
+        dbConfig.db.run(GameClips.query.filter(_.ownerXuid === g.xuid).result).map { result =>
+          Ok(views.html.game_clips.render(result.toList.sortBy(- _.datePublished), Map(g.xuid -> g.gt)))
+        }
+      }
+      case None => {
+        Future.successful{
+          Ok(views.html.error.render("Gamertag not found!"))
+        }
+      }
+    }.flatMap(identity)
+  }
+
   def screenShots = Action.async {
     dbConfig.db.run(Gamers.query.result).map { gamers =>
       val list = gamers.toList
@@ -56,6 +71,21 @@ class Application @Inject() (
     }.map { gamerMap =>
       dbConfig.db.run(ScreenShots.query.result).map { result =>
         Ok(views.html.screenshots.render(result.toList.sortBy(- _.datePublished).take(99), gamerMap))
+      }
+    }.flatMap(identity)
+  }
+
+  def gamerScreenShots(gt: String) = Action.async {
+    dbConfig.db.run(Gamers.query.filter(_.gt === gt).result.headOption).map {
+      case Some(g) => {
+        dbConfig.db.run(ScreenShots.query.filter(_.ownerXuid === g.xuid).result).map { result =>
+          Ok(views.html.screenshots.render(result.toList.sortBy(- _.datePublished), Map(g.xuid -> g.gt)))
+        }
+      }
+      case None => {
+        Future.successful{
+          Ok(views.html.error.render("Gamertag not found!"))
+        }
       }
     }.flatMap(identity)
   }
