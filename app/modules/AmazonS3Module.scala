@@ -45,17 +45,19 @@ class AmazonS3 @Inject()(configuration: Configuration,
     throw new Exception(s"S3 Bucket doesn't exist!")
   }
 
+  val updateActor = actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this))
+
   def saveScreenshot(screenshot: Screenshot): Unit = {
 
-    actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this)) ! ScreenshotUpdate(screenshot, "s")
-    actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this)) ! ScreenshotUpdate(screenshot, "l")
-    actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this)) ! ScreenshotUpdate(screenshot, "full")
+    updateActor ! ScreenshotUpdate(screenshot, "s")
+    updateActor ! ScreenshotUpdate(screenshot, "l")
+    updateActor ! ScreenshotUpdate(screenshot, "full")
 
   }
 
   def saveGameClip(gameClip: GameClip) = {
-    actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this)) ! GameClipUpdate(gameClip, "tn")
-    actorSystem.actorOf(S3StoreActor.props(wSClient, dbConfigProvider, this)) ! GameClipUpdate(gameClip, "mp4")
+    updateActor ! GameClipUpdate(gameClip, "tn")
+    updateActor ! GameClipUpdate(gameClip, "mp4")
   }
 
 }
@@ -145,8 +147,6 @@ class S3StoreActor(
 
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.smallThumbnail}")
-        }.onComplete{ _ =>
-          context.stop(self)
         }
       }
       case "l" => {
@@ -173,8 +173,6 @@ class S3StoreActor(
 
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.largeThumbnail}")
-        }.onComplete{ _ =>
-          context.stop(self)
         }
       }
       case "full" => {
@@ -201,8 +199,6 @@ class S3StoreActor(
 
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.uri}")
-        }.onComplete{ _ =>
-          context.stop(self)
         }
       }
       case _ => {
@@ -237,8 +233,6 @@ class S3StoreActor(
 
           }
           case None => Logger.info(s"Unable to download file ${update.gameClip.thumbnail}")
-        }.onComplete{ _ =>
-          context.stop(self)
         }
       }
       case "mp4" => {
@@ -265,8 +259,6 @@ class S3StoreActor(
 
           }
           case None => Logger.info(s"Unable to download file ${update.gameClip.uri}")
-        }.onComplete{ _ =>
-          context.stop(self)
         }
       }
       case _ => {
