@@ -101,6 +101,11 @@ class GameClipTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, xb
           Logger.info("Found existing game clips table...")
         }
       }
+    }.map { _ =>
+      actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
+        prune
+        sync
+      }
     }
   }
 
@@ -143,21 +148,10 @@ class GameClipTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, xb
   }
 
   def prune = {
-    val now = System.currentTimeMillis()
-    val deleteQuery = GameClips.query.filter(rec => rec.expiration <= now)
-    val deleteAction = deleteQuery.delete
-    dbConfig.db.run(deleteAction).map {nDeleted =>
-      Logger.info(s"Pruned $nDeleted expired clips.")
-    }
+    // Rethink this
   }
 
   onBoot
-
-  actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
-    prune
-    sync
-  }
-
 }
 
 class GameClipTableModule extends AbstractModule {

@@ -5,7 +5,7 @@ import javax.xml.bind.DatatypeConverter
 
 import akka.actor.ActorSystem
 import com.google.inject.{AbstractModule, Inject, Singleton}
-import modules.XboxAPI
+import modules.{AmazonS3, XboxAPI}
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -13,8 +13,9 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
-import scala.concurrent.duration._
+
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 case class ScreenshotUri(uri: String, fileSize: Int, uriType: String, expiration: String) {
   def expirationEpoch = ScreenshotUri.sdf.parse(expiration).getTime
@@ -77,14 +78,19 @@ trait ScreenShotTable {
 }
 
 @Singleton
-class ScreenShotTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider,  xboxAPI: XboxAPI, actorSystem: ActorSystem)
+class ScreenShotTableHelper @Inject()(
+                                       dbConfigProvider: DatabaseConfigProvider,
+                                       xboxAPI: XboxAPI,
+                                       actorSystem: ActorSystem,
+                                       amazonS3: AmazonS3
+                                     )
   extends ScreenShotTable with GamerTable {
   val dbConfig = dbConfigProvider.get[JdbcProfile]
   override protected val driver: JdbcProfile = dbConfig.driver
   import driver.api._
 
   def onBoot = {
-    dbConfig.db.run(MTable.getTables("screenshots")).map{ vector =>
+    dbConfig.db.run(MTable.getTables("screenshots")).map { vector =>
       vector.toList.size match {
         case 0 => {
           Logger.info("Creating screenshots table...")
@@ -93,6 +99,11 @@ class ScreenShotTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, 
         case _ => {
           Logger.info("Found existing screenshots table...")
         }
+      }
+    }.map { _ =>
+      actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
+        prune
+        sync
       }
     }
   }
@@ -107,9 +118,13 @@ class ScreenShotTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, 
           case Some(sc) => {
             val nonExpired = sc.filter(_.expiration > System.currentTimeMillis())
             Logger.info(s"Syncing ${nonExpired.size} screenshots for ${gamer.gt}")
-            nonExpired.foreach { s =>
-              dbConfig.db.run(ScreenShots.query.insertOrUpdate(s))
-            }
+
+//            nonExpired.foreach { s =>
+//              amazonS3.saveScreenshot(s).map {
+//                case true => dbConfig.db.run(ScreenShots.query.insertOrUpdate(s))
+//                case false =>
+//              }
+//            }
           }
           case None => {
             Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
@@ -136,21 +151,10 @@ class ScreenShotTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, 
   }
 
   def prune = {
-    val now = System.currentTimeMillis()
-    val deleteQuery = ScreenShots.query.filter(rec => rec.expiration <= now)
-    val deleteAction = deleteQuery.delete
-    dbConfig.db.run(deleteAction).map {nDeleted =>
-      Logger.info(s"Pruned $nDeleted expired screenshots.")
-    }
+    // rethink this
   }
 
   onBoot
-
-  actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
-    prune
-    sync
-  }
-
 }
 
 class ScreenShotTableModule extends AbstractModule {
