@@ -13,16 +13,17 @@ import models._
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
 import play.api.libs.iteratee.Iteratee
 import play.api.libs.ws.WSClient
-import play.api.{Configuration, Logger, Play}
+import play.api.{Configuration, Logger}
 import slick.driver.JdbcProfile
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class AmazonS3 @Inject()(configuration: Configuration,
-                         wSClient: WSClient,
-                         actorSystem: ActorSystem,
-                         dbConfigProvider: DatabaseConfigProvider
+class AmazonS3 @Inject()(
+                          configuration: Configuration,
+                          wSClient: WSClient,
+                          actorSystem: ActorSystem,
+                          dbConfigProvider: DatabaseConfigProvider
                         ) {
 
 
@@ -89,7 +90,7 @@ class S3StoreActor(
                   )
   extends Actor with GameClipTable with ScreenShotTable with HasDatabaseConfig[JdbcProfile] {
 
-  val dbConfig = DatabaseConfigProvider.get[JdbcProfile](Play.current)
+  val dbConfig = dbConfigProvider.get[JdbcProfile]
   import driver.api._
 
   def downloadFile(url: String): Future[Option[File]] = {

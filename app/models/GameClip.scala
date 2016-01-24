@@ -13,10 +13,10 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
-import scala.concurrent.Future
-import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.duration._
 
 //	"datePublished": "2016-01-18T01:52:56.6016817Z",
 
@@ -34,8 +34,7 @@ case class GameClip(
                      thumbnail: String,
                      uri: String,
                      ownerXuid: String,
-                     expiration: Long,
-                     isStored: Boolean = false
+                     expiration: Long
                    )  {
   val smallThumbnail = this.thumbnail.replace("Large","Small")
 
@@ -48,8 +47,7 @@ object GameClip {
       (JsPath \ "thumbnails").read[List[Thumbnail]].map(l => l.filter(_.thumbnailType.equalsIgnoreCase("Large")).map(_.uri).headOption.getOrElse("")) and
       (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.uri).headOption.getOrElse("")) and
       (JsPath \ "xuid").read[Long].map(_.toString) and
-      (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.expirationEpoch).headOption.getOrElse(0.toLong)) and
-      (JsPath \ "isStored").read[Boolean].map(_ => false)
+      (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.expirationEpoch).headOption.getOrElse(0.toLong))
     )(GameClip.apply _)
 }
 
@@ -65,10 +63,9 @@ trait GameClipTable {
     def uri: Rep[String] = column[String]("uri")
     def ownerXuid: Rep[String] = column[String]("ownerXuid")
     def expiration: Rep[Long] = column[Long]("expiration")
-    def isStored: Rep[Boolean] = column[Boolean]("isStored", O.Default(false))
 
     override def * : ProvenShape[GameClip] = (
-      gameClipId, datePublished, thumbnail, uri, ownerXuid, expiration, isStored
+      gameClipId, datePublished, thumbnail, uri, ownerXuid, expiration
       ) <> ((GameClip.apply _).tupled, GameClip.unapply)
   }
 
