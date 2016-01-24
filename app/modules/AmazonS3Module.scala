@@ -145,7 +145,7 @@ class S3StoreActor(
               case ace: AmazonClientException => Logger.error(ace.getMessage)
               case ase: AmazonServiceException => Logger.error(ase.getMessage)
             }
-
+            f.delete()
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.smallThumbnail}")
         }
@@ -171,7 +171,7 @@ class S3StoreActor(
               case ace: AmazonClientException => Logger.error(ace.getMessage)
               case ase: AmazonServiceException => Logger.error(ase.getMessage)
             }
-
+            f.delete()
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.largeThumbnail}")
         }
@@ -197,7 +197,7 @@ class S3StoreActor(
               case ace: AmazonClientException => Logger.error(ace.getMessage)
               case ase: AmazonServiceException => Logger.error(ase.getMessage)
             }
-
+            f.delete()
           }
           case None => Logger.info(s"Unable to download file ${update.screenshot.uri}")
         }
@@ -231,6 +231,7 @@ class S3StoreActor(
               case ace: AmazonClientException => Logger.error(ace.getMessage)
               case ase: AmazonServiceException => Logger.error(ase.getMessage)
             }
+            f.delete()
 
           }
           case None => Logger.info(s"Unable to download file ${update.gameClip.thumbnail}")
@@ -257,6 +258,7 @@ class S3StoreActor(
               case ace: AmazonClientException => Logger.error(ace.getMessage)
               case ase: AmazonServiceException => Logger.error(ase.getMessage)
             }
+            f.delete()
 
           }
           case None => Logger.info(s"Unable to download file ${update.gameClip.uri}")
