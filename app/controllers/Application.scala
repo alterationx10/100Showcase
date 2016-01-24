@@ -107,8 +107,8 @@ class Application @Inject() (
           case Some(xid) => {
             val gamer = Gamer(gamerTag, xid, did)
             dbConfig.db.run(Gamers.query.insertOrUpdate(gamer))
-            gameClipTableHelper.sync(gamer)
-            screenShotTableHelper.sync(gamer)
+            gameClipTableHelper.sync(Some(gamer))
+            screenShotTableHelper.sync(Some(gamer))
             Redirect(routes.Application.gamerList())
           }
           case None => Ok(views.html.error.render("Error looking up Gamertag on xboxapi"))
@@ -178,8 +178,8 @@ class Application @Inject() (
 
     if (secret == getPostParameter("refresh")) {
       Logger.info("Forcing sync...")
-      gameClipTableHelper.sync
-      screenShotTableHelper.sync
+      gameClipTableHelper.sync()
+      screenShotTableHelper.sync()
     }
 
     Ok

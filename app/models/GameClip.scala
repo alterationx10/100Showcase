@@ -5,7 +5,7 @@ import javax.xml.bind.DatatypeConverter
 
 import akka.actor.ActorSystem
 import com.google.inject.{AbstractModule, Inject, Singleton}
-import modules.XboxAPI
+import modules.{AmazonS3, XboxAPI}
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -13,6 +13,7 @@ import play.api.libs.json.{JsPath, Json, Reads}
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -33,10 +34,8 @@ case class GameClip(
                      thumbnail: String,
                      uri: String,
                      ownerXuid: String,
-                     commentCount: Int,
-                     likeCount: Int,
-                     shareCount: Int,
-                     expiration: Long
+                     expiration: Long,
+                     isStored: Boolean = false
                    )  {
   val smallThumbnail = this.thumbnail.replace("Large","Small")
 
@@ -49,10 +48,8 @@ object GameClip {
       (JsPath \ "thumbnails").read[List[Thumbnail]].map(l => l.filter(_.thumbnailType.equalsIgnoreCase("Large")).map(_.uri).headOption.getOrElse("")) and
       (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.uri).headOption.getOrElse("")) and
       (JsPath \ "xuid").read[Long].map(_.toString) and
-      (JsPath \ "commentCount").read[Int] and
-      (JsPath \ "likeCount").read[Int] and
-      (JsPath \ "shareCount").read[Int] and
-      (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.expirationEpoch).headOption.getOrElse(0.toLong))
+      (JsPath \ "gameClipUris").read[List[GameClipUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.expirationEpoch).headOption.getOrElse(0.toLong)) and
+      (JsPath \ "isStored").read[Boolean].map(_ => false)
     )(GameClip.apply _)
 }
 
@@ -67,12 +64,11 @@ trait GameClipTable {
     def thumbnail: Rep[String] = column[String]("thumbnail")
     def uri: Rep[String] = column[String]("uri")
     def ownerXuid: Rep[String] = column[String]("ownerXuid")
-    def commentCount: Rep[Int] = column[Int]("commentCount")
-    def likeCount: Rep[Int] = column[Int]("likeCount")
-    def shareCount: Rep[Int] = column[Int]("shareCount")
     def expiration: Rep[Long] = column[Long]("expiration")
+    def isStored: Rep[Boolean] = column[Boolean]("isStored", O.Default(false))
+
     override def * : ProvenShape[GameClip] = (
-      gameClipId, datePublished, thumbnail, uri, ownerXuid, commentCount, likeCount, shareCount, expiration
+      gameClipId, datePublished, thumbnail, uri, ownerXuid, expiration, isStored
       ) <> ((GameClip.apply _).tupled, GameClip.unapply)
   }
 
@@ -83,7 +79,12 @@ trait GameClipTable {
 }
 
 @Singleton
-class GameClipTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, xboxAPI: XboxAPI, actorSystem: ActorSystem)
+class GameClipTableHelper @Inject()(
+                                     dbConfigProvider: DatabaseConfigProvider,
+                                     xboxAPI: XboxAPI,
+                                     actorSystem: ActorSystem,
+                                     amazonS3: AmazonS3
+                                   )
   extends GameClipTable with GamerTable {
 
   val dbConfig = dbConfigProvider.get[JdbcProfile]
@@ -104,45 +105,37 @@ class GameClipTableHelper @Inject()(dbConfigProvider: DatabaseConfigProvider, xb
     }.map { _ =>
       actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
         prune
-        sync
+        sync()
       }
     }
   }
 
-  def sync = {
-    dbConfig.db.run(Gamers.query.result).map { gamers =>
-
+  def sync(gamerOpt: Option[Gamer] = None) = {
+    val gamersToSync = gamerOpt match {
+      case Some(g) => Future.successful(Seq(g))
+      case None => dbConfig.db.run(Gamers.query.result)
+    }
+    gamersToSync.map { gamers =>
       for {
         gamer <- gamers
       } yield {
         xboxAPI.gameClips(gamer).map {
-          case Some(clips) => {
-            val nonExpired = clips.filter(_.expiration > System.currentTimeMillis())
-            Logger.info(s"Syncing ${nonExpired.size} clips for ${gamer.gt}")
-            nonExpired.foreach { clip =>
-              dbConfig.db.run(GameClips.query.insertOrUpdate(clip))
+          case Some(clips) => clips.foreach { c =>
+            dbConfig.db.run(GameClips.query.filter(_.gameClipId === c.gameClipId).result.headOption).map{
+              case Some(exists) => {
+                Logger.info(s"Gameclip ${c.gameClipId} already exists for ${gamer.gt}")
+              }
+              case None => {
+                Logger.info(s"Inserting new Gameclip ${c.gameClipId} for ${gamer.gt}")
+                dbConfig.db.run(GameClips.query += c)
+                amazonS3.saveGameClip(c)
+              }
             }
           }
           case None => {
             Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
           }
         }
-      }
-
-    }
-  }
-
-  def sync(gamer: Gamer) = {
-    xboxAPI.gameClips(gamer).map {
-      case Some(clips) => {
-        val nonExpired = clips.filter(_.expiration > System.currentTimeMillis())
-        Logger.info(s"Syncing ${nonExpired.size} clips for ${gamer.gt}")
-        nonExpired.foreach { clip =>
-          dbConfig.db.run(GameClips.query.insertOrUpdate(clip))
-        }
-      }
-      case None => {
-        Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
       }
     }
   }

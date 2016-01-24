@@ -9,12 +9,13 @@ import modules.{AmazonS3, XboxAPI}
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
-import play.api.libs.json.{JsPath, Json, Reads}
+import play.api.libs.json._
 import slick.driver.JdbcProfile
 import slick.jdbc.meta.MTable
 import slick.lifted.ProvenShape
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.concurrent.duration._
 
 case class ScreenshotUri(uri: String, fileSize: Int, uriType: String, expiration: String) {
@@ -34,22 +35,21 @@ object Thumbnail {
 case class Screenshot(
                        screenshotId : String,
                        datePublished: Long,
-                       thumbnail: String,
+                       largeThumbnail: String,
+                       smallThumbnail: String,
                        uri: String,
-                       ownerXuid: String,
-                       expiration: Long
-                     ) {
-  val smallThumbnail = this.thumbnail.replace("Large","Small")
-}
+                       ownerXuid: String
+                     )
 
 object Screenshot {
+
   implicit val reads: Reads[Screenshot] = (
     (JsPath \ "screenshotId").read[String] and
       (JsPath \ "datePublished").read[String].map(ts => DatatypeConverter.parseDateTime(ts).getTimeInMillis) and
       (JsPath \ "thumbnails").read[List[Thumbnail]].map(l => l.filter(_.thumbnailType.equalsIgnoreCase("Large")).map(_.uri).headOption.getOrElse("")) and
+      (JsPath \ "thumbnails").read[List[Thumbnail]].map(l => l.filter(_.thumbnailType.equalsIgnoreCase("Small")).map(_.uri).headOption.getOrElse("")) and
       (JsPath \ "screenshotUris").read[List[ScreenshotUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.uri.split("\\?")(0)).headOption.getOrElse("")) and
-      (JsPath \ "xuid").read[Long].map(_.toString) and
-      (JsPath \ "screenshotUris").read[List[ScreenshotUri]].map(l => l.filter(_.uriType.equalsIgnoreCase("Download")).map(_.expirationEpoch).headOption.getOrElse(0.toLong))
+      (JsPath \ "xuid").read[Long].map(_.toString)
     )(Screenshot.apply _)
 }
 
@@ -61,13 +61,13 @@ trait ScreenShotTable {
 
     def screenshotId: Rep[String] = column[String]("screenshotId", O.PrimaryKey)
     def datePublished: Rep[Long] = column[Long]("datePublished")
-    def thumbnail: Rep[String] = column[String]("thumbnail")
+    def largeThumbnail: Rep[String] = column[String]("largeThumbail")
+    def smallThumbnail: Rep[String] = column[String]("smallThumbnail")
     def uri: Rep[String] = column[String]("uri")
     def ownerXuid: Rep[String] = column[String]("ownerXuid")
-    def expiration: Rep[Long] = column[Long]("expiration")
 
     override def * : ProvenShape[Screenshot] = (
-      screenshotId, datePublished, thumbnail, uri, ownerXuid, expiration
+      screenshotId, datePublished, largeThumbnail, smallThumbnail, uri, ownerXuid
       ) <> ((Screenshot.apply _).tupled, Screenshot.unapply)
   }
 
@@ -103,49 +103,39 @@ class ScreenShotTableHelper @Inject()(
     }.map { _ =>
       actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
         prune
-        sync
+        sync()
       }
     }
   }
 
-  def sync = {
-    dbConfig.db.run(Gamers.query.result).map { gamers =>
-
+  def sync(gamerOpt: Option[Gamer] = None) = {
+    val gamersToSync = gamerOpt match {
+      case Some(g) => Future.successful(Seq(g))
+      case None => dbConfig.db.run(Gamers.query.result)
+    }
+    gamersToSync.map { gamers =>
       for {
         gamer <- gamers
       } yield {
         xboxAPI.screenShots(gamer).map {
-          case Some(sc) => {
-            val nonExpired = sc.filter(_.expiration > System.currentTimeMillis())
-            Logger.info(s"Syncing ${nonExpired.size} screenshots for ${gamer.gt}")
-
-//            nonExpired.foreach { s =>
-//              amazonS3.saveScreenshot(s).map {
-//                case true => dbConfig.db.run(ScreenShots.query.insertOrUpdate(s))
-//                case false =>
-//              }
-//            }
+          case Some(ss) => {
+            ss.foreach{ s =>
+              dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
+                case Some(exists) => {
+                  Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
+                }
+                case None => {
+                  Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
+                  dbConfig.db.run(ScreenShots.query += s)
+                  amazonS3.saveScreenshot(s)
+                }
+              }
+            }
           }
           case None => {
             Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
           }
         }
-      }
-
-    }
-  }
-
-  def sync(gamer: Gamer) = {
-    xboxAPI.screenShots(gamer).map {
-      case Some(sc) => {
-        val nonExpired = sc.filter(_.expiration > System.currentTimeMillis())
-        Logger.info(s"Syncing ${nonExpired.size} screenshots for ${gamer.gt}")
-        nonExpired.foreach { s =>
-          dbConfig.db.run(ScreenShots.query.insertOrUpdate(s))
-        }
-      }
-      case None => {
-        Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
       }
     }
   }
