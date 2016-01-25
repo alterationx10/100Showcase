@@ -118,6 +118,7 @@ class S3UploadActor @Inject() (
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
         } finally {
+          if (fileOpt.isDefined) fileOpt.get.delete()
           latch.countDown()
         }
       }
@@ -133,6 +134,7 @@ class S3UploadActor @Inject() (
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
         } finally {
+          if (fileOpt.isDefined) fileOpt.get.delete()
           latch.countDown()
         }
       }
@@ -148,6 +150,7 @@ class S3UploadActor @Inject() (
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
         } finally {
+          if (fileOpt.isDefined) fileOpt.get.delete()
           latch.countDown()
         }
       }
@@ -177,6 +180,7 @@ class S3UploadActor @Inject() (
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
         } finally {
+          if (fileOpt.isDefined) fileOpt.get.delete()
           latch.countDown()
         }
       }
@@ -192,6 +196,7 @@ class S3UploadActor @Inject() (
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
         } finally {
+          if (fileOpt.isDefined) fileOpt.get.delete()
           latch.countDown()
         }
       }
