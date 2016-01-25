@@ -93,7 +93,7 @@ class S3UploadActor @Inject() (
         val por = new PutObjectRequest(bucketName, url, f)
         if (contentType.isDefined) {
           val md = new ObjectMetadata()
-          md.addUserMetadata("Content-Type", contentType.get)
+          md.setContentType(contentType.get)
           por.withMetadata(md)
         }
         por.setCannedAcl(CannedAccessControlList.PublicRead)
