@@ -191,7 +191,7 @@ class S3UploadActor @Inject() (
           Logger.info(s"Uploading file to ${mp4}: ${gc.gameClipId}")
           uploadFile(fileOpt, mp4)
           Logger.info(s"Updating database record: ${gc.gameClipId}")
-          dbConfig.db.run(GameClips.updateThumbnail(gc,  s"https://s3.amazonaws.com/${bucketName}/$mp4"))
+          dbConfig.db.run(GameClips.updateUrl(gc,  s"https://s3.amazonaws.com/${bucketName}/$mp4"))
         } catch {
           case ace: AmazonClientException => println(ace.getMessage)
           case ase: AmazonClientException => println(ase.getMessage)
