@@ -1,7 +1,7 @@
 package modules
 
-import com.google.inject.{AbstractModule, Inject, Singleton}
-import models.{Screenshot, GameClip, Gamer}
+import com.google.inject.{AbstractModule, Inject}
+import models.{GameClip, Gamer, Screenshot}
 import play.api.libs.json._
 import play.api.libs.ws.WSClient
 import play.api.{Configuration, Logger}
@@ -11,7 +11,6 @@ import scala.concurrent.Future
 
 class XBoxAPIConfigException(msg: String) extends Exception(msg)
 
-@Singleton
 class XboxAPI @Inject() (configuration: Configuration, wSClient: WSClient) {
 
   val destinyTitleId = 247546985
