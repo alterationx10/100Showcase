@@ -7,7 +7,7 @@ import java.util.concurrent.CountDownLatch
 import akka.actor.Actor
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import com.amazonaws.services.s3.model.{CannedAccessControlList, PutObjectRequest}
+import com.amazonaws.services.s3.model.{ObjectMetadata, CannedAccessControlList, PutObjectRequest}
 import com.amazonaws.{AmazonClientException, AmazonServiceException}
 import com.google.inject.{AbstractModule, Inject}
 import models.{GameClip, GameClipTable, ScreenShotTable, Screenshot}
@@ -92,7 +92,7 @@ class S3UploadActor @Inject() (
       case Some(f)  => {
         val por = new PutObjectRequest(bucketName, url, f)
         if (contentType.isDefined) {
-          val md = por.getMetadata
+          val md = new ObjectMetadata()
           md.addUserMetadata("Content-Type", contentType.get)
           por.withMetadata(md)
         }
