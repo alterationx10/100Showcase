@@ -3,9 +3,10 @@ package models
 import java.text.SimpleDateFormat
 import javax.xml.bind.DatatypeConverter
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
+import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
-import modules.{AmazonS3, XboxAPI}
+import modules.XboxAPI
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -37,7 +38,7 @@ case class Screenshot(
                        datePublished: Long,
                        largeThumbnail: String,
                        smallThumbnail: String,
-                       uri: String,
+                       url: String,
                        ownerXuid: String
                      )
 
@@ -63,17 +64,44 @@ trait ScreenShotTable {
     def datePublished: Rep[Long] = column[Long]("datePublished")
     def largeThumbnail: Rep[String] = column[String]("largeThumbail")
     def smallThumbnail: Rep[String] = column[String]("smallThumbnail")
-    def uri: Rep[String] = column[String]("uri")
+    def url: Rep[String] = column[String]("url")
     def ownerXuid: Rep[String] = column[String]("ownerXuid")
 
     override def * : ProvenShape[Screenshot] = (
-      screenshotId, datePublished, largeThumbnail, smallThumbnail, uri, ownerXuid
+      screenshotId, datePublished, largeThumbnail, smallThumbnail, url, ownerXuid
       ) <> ((Screenshot.apply _).tupled, Screenshot.unapply)
   }
 
   object ScreenShots {
     val query = TableQuery[ScreenShots]
     def createTable = query.schema.create
+
+    def updateSmallThumbnail(screenshot: Screenshot, url: String) = {
+      val q = for {
+        s <- ScreenShots.query if s.screenshotId === screenshot.screenshotId
+      } yield {
+        s.smallThumbnail
+      }
+      q.update(url)
+    }
+
+    def updateLargeThumbnail(screenshot: Screenshot, url: String) = {
+      val q =for {
+        s <- ScreenShots.query if s.screenshotId === screenshot.screenshotId
+      } yield {
+        s.largeThumbnail
+      }
+      q.update(url)
+    }
+
+    def updateUrl(screenshot: Screenshot, url: String) = {
+      val q = for {
+        s <- ScreenShots.query if s.screenshotId === screenshot.screenshotId
+      } yield {
+        s.url
+      }
+      q.update(url)
+    }
   }
 }
 
@@ -82,7 +110,7 @@ class ScreenShotTableHelper @Inject()(
                                        dbConfigProvider: DatabaseConfigProvider,
                                        xboxAPI: XboxAPI,
                                        actorSystem: ActorSystem,
-                                       amazonS3: AmazonS3
+                                       @Named("s3upload") s3upload: ActorRef
                                      )
   extends ScreenShotTable with GamerTable {
   val dbConfig = dbConfigProvider.get[JdbcProfile]
@@ -127,7 +155,7 @@ class ScreenShotTableHelper @Inject()(
                 case None => {
                   Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
                   dbConfig.db.run(ScreenShots.query += s)
-                  amazonS3.saveScreenshot(s)
+                  s3upload ! s
                 }
               }
             }
@@ -139,6 +167,7 @@ class ScreenShotTableHelper @Inject()(
       }
     }
   }
+
 
   def prune = {
     // rethink this

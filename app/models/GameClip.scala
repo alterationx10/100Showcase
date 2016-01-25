@@ -3,9 +3,10 @@ package models
 import java.text.SimpleDateFormat
 import javax.xml.bind.DatatypeConverter
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
+import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
-import modules.{AmazonS3, XboxAPI}
+import modules.XboxAPI
 import play.api.Logger
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -32,7 +33,7 @@ case class GameClip(
                      gameClipId : String,
                      datePublished: Long,
                      thumbnail: String,
-                     uri: String,
+                     url: String,
                      ownerXuid: String,
                      expiration: Long
                    )  {
@@ -60,19 +61,39 @@ trait GameClipTable {
     def gameClipId: Rep[String] = column[String]("gameClipId", O.PrimaryKey)
     def datePublished: Rep[Long] = column[Long]("datePublished")
     def thumbnail: Rep[String] = column[String]("thumbnail")
-    def uri: Rep[String] = column[String]("uri")
+    def url: Rep[String] = column[String]("url")
     def ownerXuid: Rep[String] = column[String]("ownerXuid")
     def expiration: Rep[Long] = column[Long]("expiration")
 
     override def * : ProvenShape[GameClip] = (
-      gameClipId, datePublished, thumbnail, uri, ownerXuid, expiration
+      gameClipId, datePublished, thumbnail, url, ownerXuid, expiration
       ) <> ((GameClip.apply _).tupled, GameClip.unapply)
   }
 
   object GameClips {
     val query = TableQuery[GameClips]
     def createTable = query.schema.create
+
+    def updateThumbnail(gameClip: GameClip, url: String) = {
+      val q = for {
+        c <- GameClips.query if c.gameClipId === gameClip.gameClipId
+      } yield {
+        c.thumbnail
+      }
+      q.update(url)
+    }
+
+    def updateUrl(gameClip: GameClip, url: String) = {
+      val q = for {
+        c <- GameClips.query if c.gameClipId === gameClip.gameClipId
+      } yield {
+        c.url
+      }
+      q.update(url)
+    }
   }
+
+
 }
 
 @Singleton
@@ -80,7 +101,7 @@ class GameClipTableHelper @Inject()(
                                      dbConfigProvider: DatabaseConfigProvider,
                                      xboxAPI: XboxAPI,
                                      actorSystem: ActorSystem,
-                                     amazonS3: AmazonS3
+                                     @Named("s3upload") s3upload: ActorRef
                                    )
   extends GameClipTable with GamerTable {
 
@@ -125,7 +146,7 @@ class GameClipTableHelper @Inject()(
               case None => {
                 Logger.info(s"Inserting new Gameclip ${c.gameClipId} for ${gamer.gt}")
                 dbConfig.db.run(GameClips.query += c)
-                amazonS3.saveGameClip(c)
+                s3upload ! c
               }
             }
           }
