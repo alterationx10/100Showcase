@@ -83,7 +83,7 @@ class S3UploadActor @Inject() (
   }
 
   val CONTENT_TYPE_PNG = Some("image/png")
-  val CONTENT_TYPE_MP4 = Some("audio/mpeg")
+  val CONTENT_TYPE_MP4 = Some("video/mp4")
 
   @throws(classOf[AmazonClientException])
   @throws(classOf[AmazonServiceException])
