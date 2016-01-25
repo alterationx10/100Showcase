@@ -5,12 +5,12 @@ import java.util.UUID
 import java.util.concurrent.CountDownLatch
 
 import akka.actor.Actor
-import com.amazonaws.{AmazonServiceException, AmazonClientException}
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
 import com.amazonaws.services.s3.model.{CannedAccessControlList, PutObjectRequest}
+import com.amazonaws.{AmazonClientException, AmazonServiceException}
 import com.google.inject.{AbstractModule, Inject}
-import models.{GameClipTable, GameClip, ScreenShotTable, Screenshot}
+import models.{GameClip, GameClipTable, ScreenShotTable, Screenshot}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
 import play.api.libs.iteratee.Iteratee
 import play.api.libs.ws.WSClient
@@ -18,6 +18,7 @@ import play.api.{Configuration, Logger}
 import play.libs.akka.AkkaGuiceSupport
 import slick.backend.DatabaseConfig
 import slick.driver.JdbcProfile
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -81,12 +82,20 @@ class S3UploadActor @Inject() (
     }.flatMap(identity)
   }
 
+  val CONTENT_TYPE_PNG = Some("image/png")
+  val CONTENT_TYPE_MP4 = Some("audio/mpeg")
+
   @throws(classOf[AmazonClientException])
   @throws(classOf[AmazonServiceException])
-  def uploadFile(fileOpt: Option[File], url: String) = {
+  def uploadFile(fileOpt: Option[File], url: String, contentType: Option[String] = None) = {
     fileOpt match {
       case Some(f)  => {
         val por = new PutObjectRequest(bucketName, url, f)
+        if (contentType.isDefined) {
+          val md = por.getMetadata
+          md.addUserMetadata("Content-Type", contentType.get)
+          por.withMetadata(md)
+        }
         por.setCannedAcl(CannedAccessControlList.PublicRead)
         awsClient.putObject(por)
       }
@@ -111,7 +120,7 @@ class S3UploadActor @Inject() (
       downloadFile(ss.url).map{ fileOpt =>
         try {
           Logger.info(s"Uploading file to ${url}: ${ss.screenshotId}")
-          uploadFile(fileOpt, url)
+          uploadFile(fileOpt, url, CONTENT_TYPE_PNG)
           Logger.info(s"Updating database record: ${ss.screenshotId}")
           dbConfig.db.run(ScreenShots.updateUrl(ss, s"https://s3.amazonaws.com/${bucketName}/$url"))
         } catch {
@@ -127,7 +136,7 @@ class S3UploadActor @Inject() (
       downloadFile(ss.largeThumbnail).map{ fileOpt =>
         try {
           Logger.info(s"Uploading file to ${tnLarge}: ${ss.screenshotId}")
-          uploadFile(fileOpt, tnLarge)
+          uploadFile(fileOpt, tnLarge, CONTENT_TYPE_PNG)
           Logger.info(s"Updating database record: ${ss.screenshotId}")
           dbConfig.db.run(ScreenShots.updateLargeThumbnail(ss, s"https://s3.amazonaws.com/${bucketName}/$tnLarge"))
         } catch {
@@ -143,7 +152,7 @@ class S3UploadActor @Inject() (
       downloadFile(ss.smallThumbnail).map { fileOpt =>
         try {
           Logger.info(s"Uploading file to ${tnSmall}: ${ss.screenshotId}")
-          uploadFile(fileOpt, tnSmall)
+          uploadFile(fileOpt, tnSmall, CONTENT_TYPE_PNG)
           Logger.info(s"Updating database record: ${ss.screenshotId}")
           dbConfig.db.run(ScreenShots.updateSmallThumbnail(ss, s"https://s3.amazonaws.com/${bucketName}/$tnSmall"))
         } catch {
@@ -173,7 +182,7 @@ class S3UploadActor @Inject() (
       downloadFile(gc.thumbnail).map{ fileOpt =>
         try {
           Logger.info(s"Uploading file to ${tn}: ${gc.gameClipId}")
-          uploadFile(fileOpt, tn)
+          uploadFile(fileOpt, tn, CONTENT_TYPE_PNG)
           Logger.info(s"Updating database record: ${gc.gameClipId}")
           dbConfig.db.run(GameClips.updateThumbnail(gc,  s"https://s3.amazonaws.com/${bucketName}/$tn"))
         } catch {
@@ -189,7 +198,7 @@ class S3UploadActor @Inject() (
       downloadFile(gc.url).map{ fileOpt =>
         try {
           Logger.info(s"Uploading file to ${mp4}: ${gc.gameClipId}")
-          uploadFile(fileOpt, mp4)
+          uploadFile(fileOpt, mp4, CONTENT_TYPE_MP4)
           Logger.info(s"Updating database record: ${gc.gameClipId}")
           dbConfig.db.run(GameClips.updateUrl(gc,  s"https://s3.amazonaws.com/${bucketName}/$mp4"))
         } catch {
