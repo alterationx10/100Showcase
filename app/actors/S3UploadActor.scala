@@ -94,6 +94,7 @@ class S3UploadActor @Inject() (
         if (contentType.isDefined) {
           val md = new ObjectMetadata()
           md.setContentType(contentType.get)
+          md.setCacheControl("max-age=31536000")
           por.withMetadata(md)
         }
         por.setCannedAcl(CannedAccessControlList.PublicRead)
