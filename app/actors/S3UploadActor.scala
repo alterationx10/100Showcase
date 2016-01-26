@@ -2,7 +2,7 @@ package actors
 
 import java.io.{File, FileOutputStream}
 import java.util.UUID
-import java.util.concurrent.CountDownLatch
+import java.util.concurrent.{TimeUnit, CountDownLatch}
 
 import akka.actor.Actor
 import com.amazonaws.auth.BasicAWSCredentials
@@ -164,7 +164,7 @@ class S3UploadActor @Inject() (
         }
       }
       Logger.info(s"Pausing for Screenshot upload: ${ss.screenshotId}")
-      latch.await()
+      latch.await(2, TimeUnit.MINUTES)
       Logger.info(s"Screenshot upload complete: ${ss.screenshotId}")
 
     }
@@ -211,7 +211,7 @@ class S3UploadActor @Inject() (
       }
 
       Logger.info(s"Pausing for Clip upload... : ${gc.gameClipId}")
-      latch.await()
+      latch.await(5, TimeUnit.MINUTES)
       Logger.info(s"Clip upload complete... : ${gc.gameClipId}")
 
     }
