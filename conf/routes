@@ -11,7 +11,11 @@ GET     /gamertags/:gt/screenshots  @controllers.Application.gamerScreenShots(gt
 POST    /addgamer                   @controllers.Application.addGamer
 GET     /about                      @controllers.Application.about
 
-POST    /dangerzone/refresh         @controllers.Application.superSecretSync
+POST    /dangerzone/sync                    @controllers.Application.sync
+POST    /dangerzone/sync/clips              @controllers.Application.syncClips
+POST    /dangerzone/sync/screenshots        @controllers.Application.syncScreenshots
+POST    /dangerzone/migrate/clips           @controllers.Application.migrateClips
+POST    /dangerzone/migrate/screenshots     @controllers.Application.migrateScreenshots
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)

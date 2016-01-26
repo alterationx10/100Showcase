@@ -4,9 +4,10 @@ import com.google.inject.Inject
 import models._
 import modules.XboxAPI
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
+import play.api.libs.json.{JsBoolean, JsObject}
 import play.api.libs.ws.WSClient
 import play.api.mvc._
-import play.api.{Logger, Configuration, Play}
+import play.api.{Configuration, Logger, Play}
 import slick.driver.JdbcProfile
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -172,17 +173,70 @@ class Application @Inject() (
     }
   }
 
-  def superSecretSync = Action { implicit request =>
+  def postConfirm(implicit request: Request): Boolean = {
+    if (configuration.getString("showcase.refresh") == getPostParameter("sync")) true else false
+  }
 
-    val secret = configuration.getString("showcase.refresh")
-
-    if (secret == getPostParameter("refresh")) {
+  // Set up some simple endpoints to trigger syncing
+  def sync = Action { implicit request =>
+    if (postConfirm) {
       Logger.info("Forcing sync...")
       gameClipTableHelper.sync()
       screenShotTableHelper.sync()
+      Ok(JsObject(Seq("sync"->JsBoolean(true))))
+    } else {
+      Ok(JsObject(Seq("sync"->JsBoolean(false))))
     }
-
-    Ok
-
   }
+
+  def syncClips = Action { implicit request =>
+    if (postConfirm) {
+      Logger.info("Forcing sync clips...")
+      gameClipTableHelper.sync()
+      Ok(JsObject(Seq("sync"->JsBoolean(true))))
+    } else {
+      Ok(JsObject(Seq("sync"->JsBoolean(false))))
+    }
+  }
+
+  def syncScreenshots = Action { implicit request =>
+    if (postConfirm) {
+      Logger.info("Forcing sync screenshots...")
+      screenShotTableHelper.sync()
+      Ok(JsObject(Seq("sync"->JsBoolean(true))))
+    } else {
+      Ok(JsObject(Seq("sync"->JsBoolean(false))))
+    }
+  }
+
+  // xbox live links expire.
+  // sync won't update link if id is already in DB
+  // Just delete, and let it re-sync later
+
+  def migrateClips = Action.async {
+    val q = GameClips.query.filter { clip =>
+      List(
+        clip.url like "%xboxlive%",
+        clip.thumbnail like "%xboxlive%"
+      ).reduceLeft(_ || _)
+    }
+    dbConfig.db.run(q.delete).map (result =>
+      Ok(s"Pruned $result clips for re-syncing")
+    )
+  }
+
+  def migrateScreenshots = Action.async {
+    val q = ScreenShots.query.filter { screnshot =>
+      List(
+        screnshot.url like "%xboxlive%",
+        screnshot.largeThumbnail like "%xboxlive%",
+        screnshot.smallThumbnail like "%xboxlive%"
+      ).reduceLeft(_ || _)
+    }
+    dbConfig.db.run(q.delete).map (result =>
+      Ok(s"Pruned $result screenshots for re-syncing")
+    )
+  }
+
+
 }
