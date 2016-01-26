@@ -173,7 +173,7 @@ class Application @Inject() (
     }
   }
 
-  def postConfirm(implicit request: Request): Boolean = {
+  def postConfirm(implicit request: Request[AnyContent]): Boolean = {
     if (configuration.getString("showcase.refresh") == getPostParameter("sync")) true else false
   }
 
