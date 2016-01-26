@@ -7,7 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
 import modules.XboxAPI
-import play.api.Logger
+import play.api.{Configuration, Logger}
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
@@ -110,6 +110,7 @@ class ScreenShotTableHelper @Inject()(
                                        dbConfigProvider: DatabaseConfigProvider,
                                        xboxAPI: XboxAPI,
                                        actorSystem: ActorSystem,
+                                       configuration: Configuration,
                                        @Named("s3upload") s3upload: ActorRef
                                      )
   extends ScreenShotTable with GamerTable {
@@ -129,51 +130,53 @@ class ScreenShotTableHelper @Inject()(
         }
       }
     }.map { _ =>
+      if (configuration.getBoolean("showcase.sync_on_boot").getOrElse(false)) {
       actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
         prune
         sync()
       }
     }
   }
+}
 
-  def sync(gamerOpt: Option[Gamer] = None) = {
-    val gamersToSync = gamerOpt match {
-      case Some(g) => Future.successful(Seq(g))
-      case None => dbConfig.db.run(Gamers.query.result)
-    }
-    gamersToSync.map { gamers =>
-      for {
-        gamer <- gamers
-      } yield {
-        xboxAPI.screenShots(gamer).map {
-          case Some(ss) => {
-            ss.foreach{ s =>
-              dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
-                case Some(exists) => {
-                  Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
-                }
-                case None => {
-                  Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
-                  dbConfig.db.run(ScreenShots.query += s)
-                  s3upload ! s
-                }
-              }
-            }
-          }
-          case None => {
-            Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
-          }
-        }
-      }
-    }
-  }
+def sync(gamerOpt: Option[Gamer] = None) = {
+val gamersToSync = gamerOpt match {
+case Some(g) => Future.successful(Seq(g))
+case None => dbConfig.db.run(Gamers.query.result)
+}
+gamersToSync.map { gamers =>
+for {
+gamer <- gamers
+} yield {
+xboxAPI.screenShots(gamer).map {
+case Some(ss) => {
+ss.foreach{ s =>
+dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
+case Some(exists) => {
+Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
+}
+case None => {
+Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
+dbConfig.db.run(ScreenShots.query += s)
+s3upload ! s
+}
+}
+}
+}
+case None => {
+Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
+}
+}
+}
+}
+}
 
 
-  def prune = {
-    // rethink this
-  }
+def prune = {
+// rethink this
+}
 
-  onBoot
+onBoot
 }
 
 class ScreenShotTableModule extends AbstractModule {

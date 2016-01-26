@@ -7,7 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
 import modules.XboxAPI
-import play.api.Logger
+import play.api.{Configuration, Logger}
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
 import play.api.libs.json.{JsPath, Json, Reads}
@@ -101,6 +101,7 @@ class GameClipTableHelper @Inject()(
                                      dbConfigProvider: DatabaseConfigProvider,
                                      xboxAPI: XboxAPI,
                                      actorSystem: ActorSystem,
+                                     configuration: Configuration,
                                      @Named("s3upload") s3upload: ActorRef
                                    )
   extends GameClipTable with GamerTable {
@@ -121,9 +122,11 @@ class GameClipTableHelper @Inject()(
         }
       }
     }.map { _ =>
-      actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
-        prune
-        sync()
+      if (configuration.getBoolean("showcase.sync_on_boot").getOrElse(false)) {
+        actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
+          prune
+          sync()
+        }
       }
     }
   }
