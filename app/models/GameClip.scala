@@ -121,7 +121,7 @@ class GameClipTableHelper @Inject()(
         }
       }
     }.map { _ =>
-      actorSystem.scheduler.schedule(0 minutes, 60 minutes) {
+      actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
         prune
         sync()
       }
