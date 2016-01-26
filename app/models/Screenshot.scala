@@ -131,52 +131,52 @@ class ScreenShotTableHelper @Inject()(
       }
     }.map { _ =>
       if (configuration.getBoolean("showcase.sync_on_boot").getOrElse(false)) {
-      actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
-        prune
-        sync()
+        actorSystem.scheduler.schedule(0 minutes, 30 minutes) {
+          prune
+          sync()
+        }
       }
     }
   }
-}
 
-def sync(gamerOpt: Option[Gamer] = None) = {
-val gamersToSync = gamerOpt match {
-case Some(g) => Future.successful(Seq(g))
-case None => dbConfig.db.run(Gamers.query.result)
-}
-gamersToSync.map { gamers =>
-for {
-gamer <- gamers
-} yield {
-xboxAPI.screenShots(gamer).map {
-case Some(ss) => {
-ss.foreach{ s =>
-dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
-case Some(exists) => {
-Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
-}
-case None => {
-Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
-dbConfig.db.run(ScreenShots.query += s)
-s3upload ! s
-}
-}
-}
-}
-case None => {
-Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
-}
-}
-}
-}
-}
+  def sync(gamerOpt: Option[Gamer] = None) = {
+    val gamersToSync = gamerOpt match {
+      case Some(g) => Future.successful(Seq(g))
+      case None => dbConfig.db.run(Gamers.query.result)
+    }
+    gamersToSync.map { gamers =>
+      for {
+        gamer <- gamers
+      } yield {
+        xboxAPI.screenShots(gamer).map {
+          case Some(ss) => {
+            ss.foreach{ s =>
+              dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
+                case Some(exists) => {
+                  Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
+                }
+                case None => {
+                  Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
+                  dbConfig.db.run(ScreenShots.query += s)
+                  s3upload ! s
+                }
+              }
+            }
+          }
+          case None => {
+            Logger.info(s"Found 0 clips for ${gamer.gt} on xboxapi")
+          }
+        }
+      }
+    }
+  }
 
 
-def prune = {
-// rethink this
-}
+  def prune = {
+    // rethink this
+  }
 
-onBoot
+  onBoot
 }
 
 class ScreenShotTableModule extends AbstractModule {
