@@ -1,0 +1,21 @@
+@(sc: Option[Screenshot], gamer: Gamer)
+
+@main("Echo Company 363 | Screenshots") {
+
+    <div class="container">
+
+    @if(sc.isDefined) {
+        <div class="row">
+            <div class="col-md-12">
+                <a href="@sc.get.url">
+                    <img src="@sc.get.url" alt="@gamer.gt" class="img-responsive">
+                </a>
+            </div>
+        </div>
+    } else {
+        <h3>Uh oh.</h3>
+        <p>Resource not found!</p>
+    }
+    </div>
+
+}

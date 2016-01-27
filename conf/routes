@@ -8,6 +8,8 @@ GET     /screenshots                @controllers.Application.screenShots
 GET     /gamertags                  @controllers.Application.gamerList
 GET     /gamertags/:gt/clips        @controllers.Application.gamerGameClips(gt: String)
 GET     /gamertags/:gt/screenshots  @controllers.Application.gamerScreenShots(gt: String)
+GET     /gamertags/:gt/s/:id        @controllers.Application.gamerScreenShot(gt: String, id: String)
+GET     /gamertags/:gt/c/:id        @controllers.Application.gamerGameClip(gt: String, id: String)
 POST    /addgamer                   @controllers.Application.addGamer
 GET     /about                      @controllers.Application.about
 

@@ -7,7 +7,13 @@
             <div class="row">
             @for(gc <- subgroup) {
                 <div class="col-md-4 thumbnail">
-                    <p>@gamerMap.get(gc.ownerXuid).getOrElse("Unknown") on <script>document.write(new Date(@gc.datePublished).toLocaleString())</script></p>
+                    <p>
+                        <a href="@routes.Application.gamerGameClips(gamerMap.get(gc.ownerXuid).getOrElse("Unknown"))">
+                        @gamerMap.get(gc.ownerXuid).getOrElse("Unknown")
+                        </a>
+                         on <script>document.write(new Date(@gc.datePublished).toLocaleString())</script>
+                        <a href="@routes.Application.gamerGameClip(gamerMap.get(gc.ownerXuid).getOrElse("Unknown"), gc.gameClipId)">Link</a>
+                    </p>
                     <div class="video-js-responsive-container vjs-hd">
                         <video id="my-video" class="video-js vjs-default-skin" controls preload="none"
                         poster="@gc.thumbnail" data-setup="{}">

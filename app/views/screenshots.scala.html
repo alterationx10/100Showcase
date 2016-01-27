@@ -8,8 +8,12 @@
         <div class="row">
         @for(sc <- subgroup) {
             <div class="col-md-4 thumbnail">
-                    <p>@gamerMap.get(sc.ownerXuid).getOrElse("Unknown") on <script>document.write(new Date(@sc.datePublished).toLocaleString())</script></p>
-                <a href="@sc.url">
+                    <p>
+                        <a href="@routes.Application.gamerScreenShots(gamerMap.get(sc.ownerXuid).getOrElse("Unknown"))">
+                        @gamerMap.get(sc.ownerXuid).getOrElse("Unknown")
+                        </a>
+                        on <script>document.write(new Date(@sc.datePublished).toLocaleString())</script></p>
+                <a href="@routes.Application.gamerScreenShot(gamerMap.get(sc.ownerXuid).getOrElse("Unknown"), sc.screenshotId)">
                 <img src="@sc.largeThumbnail" alt="@gamerMap.get(sc.ownerXuid).getOrElse("Unknown")">
                 </a>
             </div>

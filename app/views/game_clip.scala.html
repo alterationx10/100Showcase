@@ -1,0 +1,29 @@
+@(gc: Option[GameClip], gamer: Gamer)
+
+    @main("Echo Company 363 | Game Clips") {
+
+    <div class="container">
+    @if(gc.isDefined) {
+        <div class="row">
+            <div class="col-md-12">
+                <div class="video-js-responsive-container vjs-hd">
+                    <video id="my-video" class="video-js vjs-default-skin" controls preload="none"
+                    poster="@gc.get.thumbnail" data-setup="{}">
+                        <source src="@gc.get.url" type='video/mp4'>
+                        <p class="vjs-no-js">To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                        </p>
+                    </video>
+                </div>
+            </div>
+        </div>
+    } else {
+        <h3>Uh oh.</h3>
+        <p>Resource not found!</p>
+    }
+    </div>
+
+
+    <script src="https://vjs.zencdn.net/5.4.6/video.js"></script>
+
+    }
