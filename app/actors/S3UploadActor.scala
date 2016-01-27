@@ -14,7 +14,7 @@ import models.{GameClip, GameClipTable, ScreenShotTable, Screenshot}
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
 import play.api.libs.iteratee.Iteratee
 import play.api.libs.ws.WSClient
-import play.api.{Configuration, Logger}
+import play.api.{Environment, Configuration, Logger}
 import play.libs.akka.AkkaGuiceSupport
 import slick.backend.DatabaseConfig
 import slick.driver.JdbcProfile
@@ -225,8 +225,23 @@ class S3UploadActor @Inject() (
 
 }
 
-class S3UploadActorModule extends AbstractModule with AkkaGuiceSupport {
+class S3DummyActor extends Actor {
+  override def receive: Actor.Receive = {
+    case s : Any => Logger.debug(s"Message of type ${s.getClass.getName}")
+    case _ => Logger.debug("Derp!")
+  }
+}
+
+class S3UploadActorModule @Inject() (environment: Environment, configuration: Configuration) extends AbstractModule with AkkaGuiceSupport {
   override def configure(): Unit = {
-    bindActor(classOf[S3UploadActor], "s3upload")
+
+    val enabled = configuration.getBoolean("showcase.aws.s3.enable").getOrElse(false)
+
+    if (enabled) {
+      bindActor(classOf[S3UploadActor], "s3upload")
+    } else {
+      bindActor(classOf[S3DummyActor], "s3upload")
+    }
+
   }
 }
