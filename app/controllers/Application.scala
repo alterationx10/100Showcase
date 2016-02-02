@@ -1,10 +1,14 @@
 package controllers
 
+import java.text.SimpleDateFormat
+import java.util.{Date, TimeZone}
+
 import com.google.inject.Inject
 import models._
 import modules.XboxAPI
+import play.api.cache.CacheApi
 import play.api.db.slick.{DatabaseConfigProvider, HasDatabaseConfig}
-import play.api.libs.json.{JsBoolean, JsObject}
+import play.api.libs.json.{JsString, JsBoolean, JsObject}
 import play.api.libs.ws.WSClient
 import play.api.mvc._
 import play.api.{Configuration, Logger, Play}
@@ -18,7 +22,8 @@ class Application @Inject() (
                               configuration: Configuration,
                               xboxAPI: XboxAPI,
                               gameClipTableHelper: GameClipTableHelper,
-                              screenShotTableHelper: ScreenShotTableHelper
+                              screenShotTableHelper: ScreenShotTableHelper,
+                              cacheApi: CacheApi
                             ) extends Controller
   with GamerTable
   with GameClipTable
@@ -268,5 +273,19 @@ class Application @Inject() (
     )
   }
 
+  val sdf = new SimpleDateFormat("dd-M-yyyy hh:mm:ss")
+  sdf.setTimeZone(TimeZone.getTimeZone("America/New_York"))
+
+  def lastSync = Action {
+    val lastGc: Long = cacheApi.get[Long]("last-gc-sync").getOrElse(0)
+    val lastSs: Long = cacheApi.get[Long]("last-ss-sync").getOrElse(0)
+
+    val json = JsObject(Seq(
+      "last-gc-sync" -> JsString(sdf.format(new Date(lastGc))),
+      "last-ss-sync" -> JsString(sdf.format(new Date(lastSs)))
+    ))
+
+    Ok(json)
+  }
 
 }

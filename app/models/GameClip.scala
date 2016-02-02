@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
 import modules.XboxAPI
+import play.api.cache.CacheApi
 import play.api.{Configuration, Logger}
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -102,6 +103,7 @@ class GameClipTableHelper @Inject()(
                                      xboxAPI: XboxAPI,
                                      actorSystem: ActorSystem,
                                      configuration: Configuration,
+                                     cacheApi: CacheApi,
                                      @Named("s3upload") s3upload: ActorRef
                                    )
   extends GameClipTable with GamerTable {
@@ -132,6 +134,7 @@ class GameClipTableHelper @Inject()(
   }
 
   def sync(gamerOpt: Option[Gamer] = None) = {
+    cacheApi.set("last-gc-sync", System.currentTimeMillis())
     val gamersToSync = gamerOpt match {
       case Some(g) => Future.successful(Seq(g))
       case None => dbConfig.db.run(Gamers.query.result)
@@ -144,7 +147,7 @@ class GameClipTableHelper @Inject()(
           case Some(clips) => clips.foreach { c =>
             dbConfig.db.run(GameClips.query.filter(_.gameClipId === c.gameClipId).result.headOption).map{
               case Some(exists) => {
-                Logger.info(s"Gameclip ${c.gameClipId} already exists for ${gamer.gt}")
+                //
               }
               case None => {
                 Logger.info(s"Inserting new Gameclip ${c.gameClipId} for ${gamer.gt}")

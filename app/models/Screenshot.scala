@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import com.google.inject.name.Named
 import com.google.inject.{AbstractModule, Inject, Singleton}
 import modules.XboxAPI
+import play.api.cache.CacheApi
 import play.api.{Configuration, Logger}
 import play.api.db.slick.DatabaseConfigProvider
 import play.api.libs.functional.syntax._
@@ -111,6 +112,7 @@ class ScreenShotTableHelper @Inject()(
                                        xboxAPI: XboxAPI,
                                        actorSystem: ActorSystem,
                                        configuration: Configuration,
+                                       cacheApi: CacheApi,
                                        @Named("s3upload") s3upload: ActorRef
                                      )
   extends ScreenShotTable with GamerTable {
@@ -140,6 +142,7 @@ class ScreenShotTableHelper @Inject()(
   }
 
   def sync(gamerOpt: Option[Gamer] = None) = {
+    cacheApi.set("last-ss-sync", System.currentTimeMillis())
     val gamersToSync = gamerOpt match {
       case Some(g) => Future.successful(Seq(g))
       case None => dbConfig.db.run(Gamers.query.result)
@@ -153,7 +156,7 @@ class ScreenShotTableHelper @Inject()(
             ss.foreach{ s =>
               dbConfig.db.run(ScreenShots.query.filter(_.screenshotId === s.screenshotId).result.headOption).map{
                 case Some(exists) => {
-                  Logger.info(s"Screenshot ${s.screenshotId} already exists for ${gamer.gt}")
+                  //
                 }
                 case None => {
                   Logger.info(s"Inserting new Screenshot ${s.screenshotId} for ${gamer.gt}")
